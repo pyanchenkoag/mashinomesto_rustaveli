@@ -122,8 +122,8 @@ input,select{transition:border-color var(--tr),box-shadow var(--tr)}
   text-align:right;white-space:nowrap;vertical-align:middle}
 .mm-tbl td:first-child{text-align:left}
 .mm-tbl th:first-child,.mm-tbl td:first-child{
-  position:sticky;left:0;z-index:3;
-  background:var(--surface);box-shadow:2px 0 5px rgba(0,0,0,.10)}
+  position:sticky;left:0;z-index:10;
+  background:var(--surface);box-shadow:2px 0 6px rgba(0,0,0,.18)}
 .mm-tbl thead th:first-child{z-index:4;background:var(--offset)}
 .mm-tbl tr.tot td:first-child{background:var(--offset)}
 .mm-tbl tr:hover td:first-child{background:var(--surface2)}
@@ -146,7 +146,8 @@ input,select{transition:border-color var(--tr),box-shadow var(--tr)}
 
 /* chips */
 .chip{display:inline-flex;align-items:center;border-radius:999px;
-  padding:1px var(--s2);font-family:'JetBrains Mono',monospace;font-weight:600;font-size:var(--xs)}
+  padding:0 var(--s2);font-family:'JetBrains Mono',monospace;font-weight:600;font-size:var(--xs);
+  max-width:80px;justify-content:flex-end}
 .pos{background:var(--success-bg);color:var(--success)}
 .neg{background:var(--warn-bg);color:var(--warn)}
 
@@ -345,11 +346,7 @@ input,select{transition:border-color var(--tr),box-shadow var(--tr)}
 // DATA
 const BUY_DATE = new Date('2025-10-27');
 
-// Цены продажи по умолчанию (целые тыс. ₽) — рассчитаны для IRR = 26%
-const DEFAULT_SALE = {
-  162: 3822, 163: 3931, 161: 4042, 198: 4042, 199: 3931,
-  98: 3851, 97: 3851, 15: 3789, 84: 3851, 426: 3542,
-};
+// Цены продажи по умолчанию подбираются динамически под целевой IRR при загрузке
 const MM = [
   {num:162, sqm:13.3, buy:2936},
   {num:163, sqm:13.5, buy:3020},
@@ -363,9 +360,9 @@ const MM = [
   {num:426, sqm:13.3, buy:2720},
 ];
 
-// custom sale prices (тыс. ₽), инициализированы из DEFAULT_SALE
+// custom sale prices (тыс. ₽) — будут заполнены динамически
 const customSale = {};
-MM.forEach(m => customSale[m.num] = DEFAULT_SALE[m.num] ?? null);
+MM.forEach(m => customSale[m.num] = null);
 
 // rate periods (mutable, rate in %)
 // rate = ставка депозита Глобус (справочно: ЦБ − 1.75%)
@@ -499,7 +496,9 @@ function calcMaint(sqm, evalDate, maintStart, rateMonth) {
 function calcMM(mm, evalDate, params) {
   const { maintRateMonth, maintStart, rkoRub, accRub, taxRate, partShare, partRate } = params;
   const buyThs = mm.buy; // тыс. ₽
-  const sale = customSale[mm.num] ?? (DEFAULT_SALE[mm.num] ?? buyThs);
+  // базовая цена продажи по датасету (можно скорректировать при желании)
+  const baseSale = +(mm.sqm * 273.683).toFixed(0);
+  const sale = customSale[mm.num] != null ? customSale[mm.num] : baseSale;
 
   const rkoThs = rkoRub / 1000;
   const accThs = accRub / 1000;
@@ -539,6 +538,114 @@ function calcMM(mm, evalDate, params) {
 }
 
 // CALC PORTFOLIO AT ONE DATE
+
+// === Подбор цен продажи под целевой IRR при загрузке ===
+const TARGET_IRR = 0.26; // 26% годовых
+
+function buildCashFlowsJS(buyThs, rkoThs, saleThs, accThs, ndflThs, partnerPayThs,
+                         sqm, evalDate, maintStartDate, maintRateMonth) {
+  const flows = new Map();
+  const add = (d,v)=>{ const k=d.getTime(); flows.set(k,(flows.get(k)||0)+v); };
+
+  const buyDate = BUY_DATE;
+  add(buyDate, -(buyThs + rkoThs));
+
+  // %% помесячно
+  let cur = new Date(buyDate);
+  while(cur < evalDate) {
+    const eom = new Date(cur.getFullYear(), cur.getMonth()+1, 0);
+    const pay = eom < evalDate ? eom : new Date(evalDate);
+    const base = buyThs + rkoThs;
+    let intP = 0;
+    for(const p of PERIODS) {
+      const fr = new Date(p.from);
+      const toRaw = p.to ? new Date(p.to) : new Date(evalDate);
+      const to = toRaw > evalDate ? new Date(evalDate) : toRaw;
+      const s = Math.max(0,(Math.min(to,pay)-Math.max(fr,cur))/86400000);
+      intP += base * (p.rate/100)/365 * s;
+    }
+    if(intP>0.0001) add(pay,-intP);
+    if(pay >= evalDate) break;
+    cur = new Date(eom.getTime()+86400000);
+  }
+
+  // содержание: 1-го числа следующего месяца за предыдущий
+  let curM = new Date(maintStartDate);
+  while(curM < evalDate) {
+    const eom = new Date(curM.getFullYear(), curM.getMonth()+1, 0);
+    const nextFirst = new Date(eom.getFullYear(), eom.getMonth()+1, 1);
+    const pay = nextFirst <= evalDate ? nextFirst : new Date(evalDate);
+    const periodEnd = eom < evalDate ? eom : new Date(evalDate);
+    const d = (periodEnd - curM)/86400000;
+    const m = sqm * maintRateMonth * 12 / 365 * d / 1000;
+    if(m>0.0001) add(pay,-m);
+    if(periodEnd >= evalDate) break;
+    curM = new Date(eom.getTime()+86400000);
+  }
+
+  // продажа
+  add(evalDate, saleThs - accThs - ndflThs - partnerPayThs);
+
+  const arr = [...flows.entries()].map(([k,v])=>({d:new Date(parseInt(k)),v}))
+    .sort((a,b)=>a.d-b.d);
+  return {dates: arr.map(x=>x.d), cfs: arr.map(x=>x.v)};
+}
+
+function calcIrrForMM(mm, saleThs, evalDate, params) {
+  const buyThs = mm.buy;
+  const rkoThs = params.rkoRub/1000;
+  const accThs = params.accRub/1000;
+  const base = buyThs + rkoThs;
+  // реальные проценты/содержание для партнёра такие же как в calcMM
+  const dAll = (evalDate - BUY_DATE)/86400000;
+  const intPartner = base * params.partRate / 365 * dAll;
+  let intReal = 0;
+  for(const p of PERIODS){
+    const fr = new Date(p.from);
+    const toRaw = p.to ? new Date(p.to) : evalDate;
+    const to = toRaw>evalDate?evalDate:toRaw;
+    const s = Math.max(0,(to - fr)/86400000);
+    intReal += base * (p.rate/100)/365 * s;
+  }
+  const daysMaint = Math.max(0,(evalDate - new Date(params.maintStart))/86400000);
+  const maint = mm.sqm * params.maintRateMonth * 12/365 * daysMaint / 1000;
+  const ndfl = (saleThs - buyThs) * params.taxRate;
+  const grossForPartner = saleThs - (buyThs + intPartner + ndfl + rkoThs + accThs + maint);
+  const partnerPay = Math.max(0, grossForPartner * params.partShare);
+
+  const {dates,cfs} = buildCashFlowsJS(buyThs, rkoThs, saleThs, accThs, ndfl, partnerPay,
+                                       mm.sqm, evalDate, params.maintStart, params.maintRateMonth);
+  const irr = xirr(cfs, dates, 0.20);
+  return irr;
+}
+
+function seedSalesForToday() {
+  const v = document.getElementById('evalDate').value;
+  if(!v) return;
+  const evalDate = new Date(v);
+  const params = {
+    maintRateMonth: parseFloat(document.getElementById('maintRate').value) || 0,
+    maintStart:     document.getElementById('maintStart').value,
+    rkoRub:         parseFloat(document.getElementById('rko').value) || 0,
+    accRub:         parseFloat(document.getElementById('acc').value) || 0,
+    taxRate:        parseFloat(document.getElementById('taxRate').value) / 100,
+    partShare:      parseFloat(document.getElementById('partShare').value) / 100,
+    partRate:       parseFloat(document.getElementById('partRate').value) / 100,
+  };
+  MM.forEach(mm => {
+    // базовый диапазон: от покупки до покупки*2.2
+    let lo = mm.buy;
+    let hi = mm.buy * 2.2;
+    for(let i=0;i<60;i++){
+      const mid = (lo+hi)/2;
+      const irr = calcIrrForMM(mm, mid, evalDate, params);
+      if(!isFinite(irr)){ hi = mid; continue; }
+      if(irr < TARGET_IRR) lo = mid; else hi = mid;
+    }
+    customSale[mm.num] = Math.round((lo+hi)/2);
+  });
+}
+
 function calcPortfolio(evalDate, params) {
   const results = MM.map(mm => calcMM(mm, evalDate, params));
   const tot = {};
@@ -610,7 +717,8 @@ function renderMm(p1, p2) {
   const tbody = document.getElementById('mmBody');
   const rows = p1.results.map((r, i) => {
     const r2 = p2.results[i];
-    const saleVal = Math.round(customSale[r.mm.num] ?? DEFAULT_SALE[r.mm.num] ?? r.mm.buy);
+    const baseSale = Math.round(r.mm.sqm * 273.683);
+    const saleVal = customSale[r.mm.num] != null ? Math.round(customSale[r.mm.num]) : baseSale;
     const c1 = r.ownerProfit >= 0 ? 'pos' : 'neg';
     const c2 = r2.ownerProfit >= 0 ? 'pos' : 'neg';
     return `<tr>
@@ -664,7 +772,7 @@ function renderMm(p1, p2) {
   tbody.querySelectorAll('.sale-inp').forEach(inp => {
     const commit = () => {
       const v = parseFloat(inp.value);
-      customSale[+inp.dataset.mm] = isNaN(v) ? DEFAULT_SALE[+inp.dataset.mm] : Math.round(v);
+      customSale[+inp.dataset.mm] = isNaN(v) ? null : Math.round(v);
       calculate();
     };
     inp.addEventListener('change', commit);
@@ -699,6 +807,7 @@ function calculate() {
   .forEach(id => document.getElementById(id).addEventListener('input', calculate));
 
 document.getElementById('evalDate').value = new Date().toISOString().split('T')[0];
+seedSalesForToday();
 calculate();
 </script>
 </body>
