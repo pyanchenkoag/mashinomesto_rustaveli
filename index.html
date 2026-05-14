@@ -1,0 +1,702 @@
+<!DOCTYPE html>
+<html lang="ru" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Калькулятор машиномест — Руставели</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300..700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+:root,[data-theme="light"]{
+  --bg:#f7f6f2;--surface:#f9f8f5;--surface2:#fbfbf9;--offset:#f0ede8;
+  --divider:#dcd9d5;--border:#d4d1ca;
+  --text:#28251d;--muted:#7a7974;--faint:#bab9b4;
+  --primary:#01696f;--primary-h:#0c4e54;
+  --success:#437a22;--success-bg:#d4dfcc;
+  --warn:#964219;--warn-bg:#ddcfc6;
+  --gold:#c98a00;--gold-bg:#ede0bb;
+  --blue:#006494;--blue-bg:#c6d8e4;
+  --shadow-sm:0 1px 3px rgba(0,0,0,.07);
+  --shadow-md:0 4px 12px rgba(0,0,0,.08);
+  --rs:.375rem;--rm:.5rem;--rl:.75rem;
+  --s1:.25rem;--s2:.5rem;--s3:.75rem;--s4:1rem;--s5:1.25rem;--s6:1.5rem;--s8:2rem;
+  --xs:clamp(.72rem,.68rem+.2vw,.8rem);
+  --sm:clamp(.8rem,.76rem+.2vw,.875rem);
+  --base:clamp(.875rem,.85rem+.15vw,.95rem);
+  --lg:clamp(1.1rem,1rem+.5vw,1.35rem);
+  --tr:160ms cubic-bezier(.16,1,.3,1);
+}
+[data-theme="dark"]{
+  --bg:#171614;--surface:#1c1b19;--surface2:#201f1d;--offset:#242321;
+  --divider:#262523;--border:#393836;
+  --text:#cdccca;--muted:#797876;--faint:#5a5957;
+  --primary:#4f98a3;--primary-h:#227f8b;
+  --success:#6daa45;--success-bg:#3a4435;
+  --warn:#bb653b;--warn-bg:#564942;
+  --gold:#e8af34;--gold-bg:#4d4332;
+  --blue:#5591c7;--blue-bg:#3a4550;
+  --shadow-sm:0 1px 3px rgba(0,0,0,.25);
+  --shadow-md:0 4px 12px rgba(0,0,0,.35);
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{-webkit-font-smoothing:antialiased}
+body{min-height:100dvh;font-family:'Inter',sans-serif;font-size:var(--base);
+  color:var(--text);background:var(--bg);line-height:1.5}
+input,button,select{font:inherit;color:inherit}
+button{cursor:pointer;background:none;border:none}
+table{border-collapse:collapse;width:100%}
+input,select{transition:border-color var(--tr),box-shadow var(--tr)}
+:focus-visible{outline:2px solid var(--primary);outline-offset:2px;border-radius:var(--rs)}
+
+/* TOPBAR */
+.topbar{position:sticky;top:0;z-index:100;background:var(--surface);
+  border-bottom:1px solid var(--border);padding:var(--s3) var(--s5);
+  display:flex;align-items:center;justify-content:space-between;box-shadow:var(--shadow-sm)}
+.brand{display:flex;align-items:center;gap:var(--s3)}
+.brand-name{font-size:var(--lg);font-weight:700;letter-spacing:-.02em}
+.brand-sub{font-size:var(--xs);color:var(--muted)}
+.theme-btn{width:32px;height:32px;border-radius:var(--rm);display:flex;align-items:center;
+  justify-content:center;color:var(--muted);border:1px solid var(--border);transition:background var(--tr),color var(--tr)}
+.theme-btn:hover{color:var(--text);background:var(--offset)}
+
+/* WRAP */
+.wrap{max-width:1600px;margin:0 auto;padding:var(--s5);display:flex;flex-direction:column;gap:var(--s5)}
+
+/* CARD */
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--rl);
+  padding:var(--s4) var(--s5);box-shadow:var(--shadow-sm)}
+.card-title{font-size:var(--xs);font-weight:700;text-transform:uppercase;letter-spacing:.07em;
+  color:var(--muted);margin-bottom:var(--s4)}
+/* параметры — компактнее */
+.card .field label{font-size:.7rem}
+.card .field input,.card .field select{font-size:.72rem;padding:4px var(--s2)}
+
+/* INPUTS GRID */
+.igrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:var(--s3)}
+.field{display:flex;flex-direction:column;gap:3px}
+.field label{font-size:var(--xs);color:var(--muted);font-weight:500}
+.iw{position:relative}
+.ip{position:absolute;left:var(--s3);top:50%;transform:translateY(-50%);
+  font-size:var(--xs);color:var(--faint);pointer-events:none}
+.field input,.field select{
+  width:100%;padding:5px var(--s3);
+  background:var(--surface2);border:1px solid var(--border);
+  border-radius:var(--rm);font-size:var(--sm);}
+.field input.pi{padding-left:var(--s8)}
+.field input:focus,.field select:focus{
+  border-color:var(--primary);box-shadow:0 0 0 3px color-mix(in srgb,var(--primary) 18%,transparent);outline:none}
+.field input[type=date]{color-scheme:light}
+[data-theme="dark"] .field input[type=date]{color-scheme:dark}
+
+/* RATES TABLE */
+.rtbl-wrap{overflow-x:auto;border-radius:var(--rm);border:1px solid var(--border);max-width:580px}
+.rtbl{width:100%;min-width:400px}
+.rtbl th{background:var(--offset);font-size:.68rem;font-weight:700;text-transform:uppercase;
+  letter-spacing:.05em;color:var(--muted);padding:3px var(--s2);
+  border-bottom:1px solid var(--border);white-space:nowrap}
+.rtbl th.r,.rtbl td.r{text-align:right}
+.rtbl td{padding:3px var(--s2);font-size:.68rem;border-bottom:1px solid var(--divider)}
+.rtbl tr:last-child td{border-bottom:none;font-weight:700;background:var(--offset)}
+.rtbl td.mono{font-family:'JetBrains Mono',monospace;font-size:.68rem}
+.rate-inp{width:64px;padding:2px 5px;text-align:right;
+  background:var(--surface);border:1px solid var(--border);
+  border-radius:var(--rs);font-family:'JetBrains Mono',monospace;font-size:.68rem}
+.rate-inp:focus{border-color:var(--primary);outline:none}
+
+/* MAIN TABLE */
+.tbl-wrap{background:var(--surface);border:1px solid var(--border);
+  border-radius:var(--rl);overflow-x:auto;box-shadow:var(--shadow-sm)}
+.mm-tbl{min-width:1120px}
+.mm-tbl th{
+  background:var(--offset);font-size:var(--xs);font-weight:700;
+  text-transform:uppercase;letter-spacing:.05em;color:var(--muted);
+  padding:var(--s2) var(--s3);text-align:right;
+  border-bottom:2px solid var(--border);white-space:nowrap;line-height:1.3}
+.mm-tbl th:first-child,.mm-tbl th.left{text-align:left}
+.mm-tbl th.sep,.mm-tbl td.sep{border-left:2px solid var(--border)}
+.mm-tbl th.center{text-align:center}
+.mm-tbl td{
+  padding:5px var(--s3);font-size:var(--xs);
+  border-bottom:1px solid var(--divider);
+  text-align:right;white-space:nowrap;vertical-align:middle}
+.mm-tbl td:first-child{text-align:left}
+.mm-tbl th:first-child,.mm-tbl td:first-child{
+  position:sticky;left:0;z-index:2;
+  background:var(--surface);box-shadow:2px 0 4px rgba(0,0,0,.06)}
+.mm-tbl tr.tot td:first-child{background:var(--offset)}
+.mm-tbl tr:hover td:first-child{background:var(--surface2)}
+.mm-tbl tr:hover td{background:var(--surface2)}
+.mm-tbl tr.tot td{background:var(--offset);font-weight:700;
+  border-top:2px solid var(--border)}
+.mm-tbl td.mono{font-family:'JetBrains Mono',monospace}
+.mm-tbl th.d2-head{background:color-mix(in srgb,var(--gold-bg) 60%,var(--offset))}
+.mm-tbl th.d2-sub{background:color-mix(in srgb,var(--gold-bg) 40%,var(--offset))}
+
+/* editable sale input */
+.sale-inp{
+  width:78px;padding:2px 4px;text-align:right;
+  background:var(--surface);border:1px solid var(--border);
+  border-radius:var(--rs);font-family:'JetBrains Mono',monospace;font-size:var(--xs)}
+.sale-inp:focus{border-color:var(--primary);outline:none;
+  box-shadow:0 0 0 2px color-mix(in srgb,var(--primary) 18%,transparent)}
+
+/* chips */
+.chip{display:inline-flex;align-items:center;border-radius:999px;
+  padding:1px var(--s2);font-family:'JetBrains Mono',monospace;font-weight:600;font-size:var(--xs)}
+.pos{background:var(--success-bg);color:var(--success)}
+.neg{background:var(--warn-bg);color:var(--warn)}
+
+.sec-title{font-size:var(--lg);font-weight:700;margin-bottom:var(--s3)}
+.hint{font-size:var(--xs);color:var(--muted);margin-top:var(--s2)}
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="brand">
+    <svg width="30" height="30" viewBox="0 0 32 32" fill="none">
+      <rect width="32" height="32" rx="7" fill="currentColor" opacity=".1"/>
+      <rect x="4" y="18" width="10" height="10" rx="2" fill="currentColor" opacity=".55"/>
+      <rect x="18" y="10" width="10" height="18" rx="2" fill="currentColor"/>
+      <rect x="4" y="4" width="10" height="10" rx="2" fill="currentColor" opacity=".32"/>
+    </svg>
+    <div>
+      <div class="brand-name">Руставели MM</div>
+      <div class="brand-sub">Дата покупки: 27.10.2025 · Калькулятор доходности</div>
+    </div>
+  </div>
+  <button class="theme-btn" data-tt aria-label="Тема">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
+  </button>
+</header>
+
+<div class="wrap">
+
+  <!-- ПАРАМЕТРЫ + СТАВКИ В ОДИН РЯД -->
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--s5);align-items:start">
+  <div class="card">
+    <div class="card-title">⚙️ Параметры расчёта</div>
+    <div class="igrid">
+      <div class="field">
+        <label>Дата оценки</label>
+        <input type="date" id="evalDate">
+      </div>
+      <div class="field">
+        <label>Тариф содержания (₽/м²/мес)</label>
+        <div class="iw"><span class="ip">₽</span>
+          <input type="number" id="maintRate" class="pi" value="127.51" min="0" step="0.01"></div>
+      </div>
+      <div class="field">
+        <label>Начало содержания</label>
+        <input type="date" id="maintStart" value="2026-01-13">
+      </div>
+      <div class="field">
+        <label>РКО при покупке (₽/мм)</label>
+        <div class="iw"><span class="ip">₽</span>
+          <input type="number" id="rko" class="pi" value="2000" min="0" step="100"></div>
+      </div>
+      <div class="field">
+        <label>Аккредитив при продаже (₽/мм)</label>
+        <div class="iw"><span class="ip">₽</span>
+          <input type="number" id="acc" class="pi" value="5000" min="0" step="100"></div>
+      </div>
+      <div class="field">
+        <label>НДФЛ %</label>
+        <div class="iw"><span class="ip">%</span>
+          <input type="number" id="taxRate" class="pi" value="15" min="0" max="30" step="0.5"></div>
+      </div>
+      <div class="field">
+        <label>Доля партнёра в прибыли %</label>
+        <div class="iw"><span class="ip">%</span>
+          <input type="number" id="partShare" class="pi" value="30" min="0" max="100" step="1"></div>
+      </div>
+      <div class="field">
+        <label>Ставка для партнёра (% год.)</label>
+        <div class="iw"><span class="ip">%</span>
+          <input type="number" id="partRate" class="pi" value="22" min="0" max="100" step="0.5"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">💸 Стоимость денег — депозит Глобус (ЦБ − 1,75%) по периодам</div>
+    <div class="rtbl-wrap">
+      <table class="rtbl">
+        <thead>
+          <tr>
+            <th>С</th><th>По</th>
+            <th class="r">Дней</th>
+            <th class="r">Ставка<br><small style="font-weight:400;text-transform:none;letter-spacing:0">(ЦБ−1,75%)</small></th>
+          </tr>
+        </thead>
+        <tbody id="ratesTbody"></tbody>
+      </table>
+    </div>
+    <div class="hint">Последний период заканчивается на дату оценки. Ставки редактируемые.</div>
+  </div>
+  </div><!-- /grid 2col -->
+
+  <!-- ТАБЛИЦА МM -->
+  <div>
+    <div class="sec-title">Детализация по машиноместам <span style="font-size:var(--xs);font-weight:400;color:var(--muted)">(тыс. ₽)</span></div>
+    <div class="tbl-wrap">
+      <table class="mm-tbl">
+        <thead>
+          <tr>
+            <th rowspan="2">МM</th>
+            <th rowspan="2" class="right">м²</th>
+            <th rowspan="2" class="right">Покупка</th>
+            <th rowspan="2" class="right">Продажа<br><span style="font-weight:400;font-size:10px;text-transform:none;letter-spacing:0">(ред. тыс.₽)</span></th>
+            <th rowspan="2" class="right">%%<br><small style="font-weight:400;text-transform:none;letter-spacing:0">(ЦБ−1,75%)</small></th>
+            <th rowspan="2" class="right">%% для<br>партнёра</th>
+            <th rowspan="2" class="right">Содерж.</th>
+            <th rowspan="2" class="right">РКО+<br>Акк.</th>
+            <th rowspan="2" class="right">НДФЛ</th>
+            <th rowspan="2" class="right">Расходы<br>итого</th>
+            <th colspan="3" class="center" style="border-bottom:1px solid var(--border)">Дата оценки</th>
+            <th colspan="3" class="center sep d2-head" style="border-bottom:1px solid var(--border)">+20 дней</th>
+            <th rowspan="2" class="sep right">Вам</th>
+            <th rowspan="2" class="right">Партнёру</th>
+          </tr>
+          <tr>
+            <th>Прибыль</th><th>ROI</th><th>IRR</th>
+            <th class="sep d2-sub">Прибыль</th><th class="d2-sub">ROI</th><th class="d2-sub">IRR</th>
+          </tr>
+        </thead>
+        <tbody id="mmBody"></tbody>
+      </table>
+    </div>
+    <div style="margin-top:var(--s4);padding:var(--s4) var(--s5);
+      background:var(--surface);border:1px solid var(--border);border-radius:var(--rl);
+      font-size:var(--xs);color:var(--muted);line-height:1.8">
+      <div style="font-weight:700;color:var(--text);margin-bottom:var(--s3);font-size:var(--sm)">
+        📋 Методология расчёта
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:var(--s3) var(--s5)">
+        <div>
+          <span style="font-weight:600;color:var(--text)">%% (ЦБ)</span> —
+          начисляются ежедневно от базы <em>(покупка + РКО)</em> по ставке депозита
+          в Глобусе (<em>ставка ЦБ − 1,75%</em>) за соответствующий период.
+          Оплата — в последний день каждого месяца.
+          Итоговая сумма — нарастающим итогом до даты оценки.
+        </div>
+        <div>
+          <span style="font-weight:600;color:var(--text)">%% для партнёра</span> —
+          начисляются по единой ставке <em>22% годовых</em> от той же базы
+          <em>(покупка + РКО)</em> за всё время владения (от даты покупки до даты оценки).
+          Используется только для расчёта доли партнёра — не является реальным расходом в IRR.
+        </div>
+        <div>
+          <span style="font-weight:600;color:var(--text)">Содержание МM</span> —
+          тариф <em id="notesMaintRate">127,51 ₽/м²/мес</em>, начисляется за каждый
+          календарный день с даты начала содержания. Формула:
+          <em>тариф × площадь × 12 / 365 × дней</em>.
+          <strong>Оплата — 1-го числа следующего месяца за предыдущий.</strong>
+          Последний период оплачивается в дату оценки.
+        </div>
+        <div>
+          <span style="font-weight:600;color:var(--text)">РКО + Аккредитив</span> —
+          РКО оплачивается в день покупки (27.10.2025).
+          Аккредитив — в день продажи (дата оценки).
+          В таблице показаны суммарно.
+        </div>
+        <div>
+          <span style="font-weight:600;color:var(--text)">НДФЛ</span> —
+          рассчитывается как <em>(цена продажи − цена покупки) × ставка НДФЛ</em>.
+          Условно считается уплаченным в день продажи (дата оценки).
+        </div>
+        <div>
+          <span style="font-weight:600;color:var(--text)">Прибыль партнёра</span> —
+          30% от прибыли, где прибыль считается как
+          <em>продажа − (покупка + %% партнёра + НДФЛ + РКО + аккредитив + содержание)</em>.
+          Оплачивается в день продажи.
+        </div>
+        <div>
+          <span style="font-weight:600;color:var(--text)">ROI</span> —
+          <em>ваша прибыль / реальные расходы итого</em>.
+        </div>
+        <div>
+          <span style="font-weight:600;color:var(--text)">IRR</span> —
+          XIRR по реальным денежным потокам (аналог функции ЧИСТВНДОХ в Excel).
+          Потоки: <em>−покупка−РКО</em> (27.10.2025), <em>−%% ежемесячно</em>,
+          <em>−содержание</em> (1-го числа следующего месяца),
+          <em>+продажа − аккредитив − НДФЛ − доля партнёра</em> (дата оценки).
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+// THEME
+(function(){
+  const btn=document.querySelector('[data-tt]'),h=document.documentElement;
+  const MOON='<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>';
+  const SUN='<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>';
+  let d='light';
+  btn.addEventListener('click',()=>{d=d==='light'?'dark':'light';h.setAttribute('data-theme',d);btn.innerHTML=d==='dark'?MOON:SUN;});
+})();
+
+// DATA
+const BUY_DATE = new Date('2025-10-27');
+
+// Цены продажи по умолчанию (целые тыс. ₽) — рассчитаны для IRR = 26%
+const DEFAULT_SALE = {
+  162: 3822, 163: 3931, 161: 4042, 198: 4042, 199: 3931,
+  98: 3851, 97: 3851, 15: 3789, 84: 3851, 426: 3542,
+};
+const MM = [
+  {num:162, sqm:13.3, buy:2936},
+  {num:163, sqm:13.5, buy:3020},
+  {num:161, sqm:14.0, buy:3105},
+  {num:198, sqm:14.1, buy:3105},
+  {num:199, sqm:13.8, buy:3020},
+  {num:98,  sqm:13.6, buy:2958},
+  {num:97,  sqm:13.5, buy:2958},
+  {num:15,  sqm:13.5, buy:2910},
+  {num:84,  sqm:13.6, buy:2958},
+  {num:426, sqm:13.3, buy:2720},
+];
+
+// custom sale prices (тыс. ₽), инициализированы из DEFAULT_SALE
+const customSale = {};
+MM.forEach(m => customSale[m.num] = DEFAULT_SALE[m.num] ?? null);
+
+// rate periods (mutable, rate in %)
+// rate = ставка депозита Глобус (справочно: ЦБ − 1.75%)
+const PERIODS = [
+  {from:'2025-10-27', to:'2025-12-22', rate:14.75, cbRate:16.50},
+  {from:'2025-12-22', to:'2026-02-15', rate:14.25, cbRate:16.00},
+  {from:'2026-02-15', to:'2026-03-22', rate:13.75, cbRate:15.50},
+  {from:'2026-03-22', to:'2026-04-27', rate:13.25, cbRate:15.00},
+  {from:'2026-04-27', to:null,         rate:12.75, cbRate:14.50},
+];
+
+// HELPERS
+const daysBetween = (a,b) => Math.max(0,(b-a)/86400000);
+const addDays = (d,n) => { const x=new Date(d); x.setDate(x.getDate()+n); return x; };
+const fmtDate = d => d.toLocaleDateString('ru-RU',{day:'2-digit',month:'2-digit',year:'numeric'});
+const T = n => n==null ? '—' : (Math.round(n*10)/10).toLocaleString('ru-RU',{minimumFractionDigits:1,maximumFractionDigits:1});
+const P = n => n==null ? '—' : (n*100).toFixed(1)+'%';
+
+// XIRR
+function xirr(cfs, dates, g=0.15) {
+  let r=g;
+  const t0=dates[0].getTime();
+  for(let i=0;i<500;i++){
+    let f=0,df=0;
+    for(let j=0;j<cfs.length;j++){
+      const t=(dates[j].getTime()-t0)/86400000/365;
+      const disc=Math.pow(1+r,t);
+      f+=cfs[j]/disc;
+      df+=-t*cfs[j]/((1+r)*disc);
+    }
+    if(Math.abs(df)<1e-15) break;
+    const r2=r-f/df;
+    if(Math.abs(r2-r)<1e-12) return r2;
+    r=r2;
+  }
+  return r;
+}
+
+// Добавляем к дате N месяцев (конец месяца)
+function addMonths(d,n){const r=new Date(d);r.setMonth(r.getMonth()+n);return r;}
+function endOfMonth(d){return new Date(d.getFullYear(),d.getMonth()+1,0);}
+
+// Строим помесячные потоки для XIRR (тыс. ₽)
+function buildCashFlows(buyThs, rkoThs, saleThs, accThs, ndflThs, partnerPayThs,
+                         buyDate, evalDate, maintStartDate, maintRateMonth, sqm) {
+  const flows = new Map();
+  const addFlow = (d, v) => {
+    const k = d.getTime();
+    flows.set(k, (flows.get(k)||0) + v);
+    flows._dates = flows._dates || {};
+    flows._dates[k] = d;
+  };
+
+  // Покупка + РКО
+  addFlow(buyDate, -(buyThs + rkoThs));
+
+  // %% помесячно
+  let cur = new Date(buyDate);
+  while(cur < evalDate) {
+    const eom = endOfMonth(cur);
+    const payDate = eom < evalDate ? eom : new Date(evalDate);
+    let intPeriod = 0;
+    const base = buyThs + rkoThs;
+    for(const p of PERIODS) {
+      const fr = new Date(p.from);
+      const toRaw = p.to ? new Date(p.to) : new Date(evalDate);
+      const to = toRaw > evalDate ? new Date(evalDate) : toRaw;
+      const s = Math.max(0, (Math.min(to,payDate) - Math.max(fr,cur)) / 86400000);
+      intPeriod += base * (p.rate/100) / 365 * s;
+    }
+    if(intPeriod > 0.0001) addFlow(payDate, -intPeriod);
+    if(payDate >= evalDate) break;
+    cur = new Date(eom.getTime() + 86400000);
+  }
+
+  // Содержание: оплата 1-го числа следующего месяца за предыдущий
+  let curM = new Date(maintStartDate);
+  while(curM < evalDate) {
+    const eom = endOfMonth(curM);
+    // дата оплаты = 1-е число следующего месяца (или дата оценки если последний период)
+    const nextFirst = new Date(eom.getFullYear(), eom.getMonth()+1, 1);
+    const payDate = nextFirst <= evalDate ? nextFirst : new Date(evalDate);
+    const periodEnd = eom < evalDate ? eom : new Date(evalDate);
+    const d = (periodEnd - curM) / 86400000;
+    const m = sqm * maintRateMonth * 12 / 365 * d / 1000;
+    if(m > 0.0001) addFlow(payDate, -m);
+    if(periodEnd >= evalDate) break;
+    curM = new Date(eom.getTime() + 86400000);
+  }
+
+  // Продажа
+  addFlow(evalDate, saleThs - accThs - ndflThs - partnerPayThs);
+
+  // Собираем и сортируем
+  const sorted = [...flows.entries()]
+    .filter(([k]) => k !== '_dates')
+    .map(([k, v]) => ({ d: new Date(parseInt(k)), v }))
+    .sort((a,b) => a.d - b.d);
+  return { dates: sorted.map(x=>x.d), cfs: sorted.map(x=>x.v) };
+}
+
+// %% реальные (тыс. ₽): база = покупка + РКО (тыс.)
+function calcInterest(baseThs, evalDate) {
+  let tot = 0;
+  for(const p of PERIODS) {
+    const fr = new Date(p.from);
+    const to = p.to ? new Date(p.to) : evalDate;
+    const clampTo = to > evalDate ? evalDate : to;
+    const d = daysBetween(fr, clampTo);
+    if(d <= 0) continue;
+    tot += baseThs * (p.rate/100) / 365 * d;
+  }
+  return tot;
+}
+
+// %% для партнёра (тыс. ₽): база = покупка + РКО (тыс.), ставка партнёра, дни от покупки
+function calcInterestPartner(baseThs, evalDate, partnerRate) {
+  const d = daysBetween(BUY_DATE, evalDate);
+  return baseThs * partnerRate / 365 * d;
+}
+
+// Содержание (тыс. ₽): тариф ₽/м²/мес * площадь * 12/365 * дней
+function calcMaint(sqm, evalDate, maintStart, rateMonth) {
+  const ms = new Date(maintStart);
+  const d = daysBetween(ms, evalDate);
+  if(d <= 0) return 0;
+  return sqm * rateMonth * 12 / 365 * d / 1000;
+}
+
+// CALC ONE MM AT ONE DATE
+function calcMM(mm, evalDate, params) {
+  const { maintRateMonth, maintStart, rkoRub, accRub, taxRate, partShare, partRate } = params;
+  const buyThs = mm.buy; // тыс. ₽
+  const sale = customSale[mm.num] ?? (DEFAULT_SALE[mm.num] ?? buyThs);
+
+  const rkoThs = rkoRub / 1000;
+  const accThs = accRub / 1000;
+  const base = buyThs + rkoThs; // база для процентов
+
+  const intReal    = calcInterest(base, evalDate);
+  const intPartner = calcInterestPartner(base, evalDate, partRate);
+  const maint      = calcMaint(mm.sqm, evalDate, maintStart, maintRateMonth);
+  const ndfl       = (sale - buyThs) * taxRate;  // от (продажа - покупка)
+
+  // Расходы реальные
+  const costsReal = buyThs + intReal + ndfl + rkoThs + accThs + maint;
+  const grossReal = sale - costsReal;
+
+  // Прибыль для расчёта доли партнёра: вместо intReal берём intPartner
+  const costsForPartner = buyThs + intPartner + ndfl + rkoThs + accThs + maint;
+  const grossForPartner = sale - costsForPartner;
+  const partnerPay = Math.max(0, grossForPartner * partShare);
+
+  const ownerProfit = grossReal - partnerPay;
+  const roi = ownerProfit / costsReal;
+
+  // IRR: помесячные денежные потоки (как ЧИСТВНДОХ в Excel)
+  let irr = null;
+  try {
+    const ms = new Date(maintStart);
+    const { dates: irrDates, cfs: irrCfs } = buildCashFlows(
+      buyThs, rkoThs, sale, accThs, ndfl, partnerPay,
+      BUY_DATE, evalDate, ms, maintRateMonth, mm.sqm
+    );
+    const v = xirr(irrCfs, irrDates, 0.15);
+    if(isFinite(v) && v > -0.99 && v < 50) irr = v;
+  } catch(e) {}
+
+  return { mm, sale, buyThs, intReal, intPartner, maint, rkoThs, accThs, ndfl,
+           costsReal, grossReal, partnerPay, ownerProfit, roi, irr };
+}
+
+// CALC PORTFOLIO AT ONE DATE
+function calcPortfolio(evalDate, params) {
+  const results = MM.map(mm => calcMM(mm, evalDate, params));
+  const tot = {};
+  ['buyThs','sale','intReal','intPartner','maint','rkoThs','accThs','ndfl',
+   'costsReal','grossReal','partnerPay','ownerProfit'].forEach(k => {
+    tot[k] = results.reduce((s,r) => s + r[k], 0);
+  });
+  tot.roi = tot.ownerProfit / tot.costsReal;
+  // Portfolio IRR: суммируем потоки всех МM
+  try {
+    const allFlows = new Map();
+    const addF = (d,v) => { const k=d.getTime(); allFlows.set(k,{d,v:(allFlows.get(k)?.v||0)+v}); };
+    for(const r of results) {
+      const ms = new Date(params.maintStart);
+      const {dates,cfs} = buildCashFlows(
+        r.buyThs, r.rkoThs, r.sale, r.accThs, r.ndfl, r.partnerPay,
+        BUY_DATE, evalDate, ms, params.maintRateMonth, r.mm.sqm
+      );
+      dates.forEach((d,i) => addF(d, cfs[i]));
+    }
+    const sorted = [...allFlows.values()].sort((a,b)=>a.d-b.d);
+    const v = xirr(sorted.map(x=>x.v), sorted.map(x=>x.d), 0.15);
+    tot.irr = isFinite(v) && v > -0.99 && v < 50 ? v : null;
+  } catch(e) { tot.irr = null; }
+  return { results, tot };
+}
+
+// RENDER RATES TABLE
+function renderRates(evalDate) {
+  const tbody = document.getElementById('ratesTbody');
+  const totBase = MM.reduce((s,m) => s + m.buy + 2, 0); // buy+rko тыс.
+  let totalInt = 0, totalDays = 0;
+  const rows = PERIODS.map((p,i) => {
+    const fr = new Date(p.from);
+    const toRaw = p.to ? new Date(p.to) : evalDate;
+    const to = toRaw > evalDate ? evalDate : toRaw;
+    const d = Math.max(0, daysBetween(fr, to));
+    const interest = totBase * (p.rate/100) / 365 * d;
+    totalInt += interest; totalDays += d;
+    return { fr, to, d, rate: p.rate, cbRate: p.cbRate, interest, idx: i };
+  }).filter(r => r.d > 0);
+
+  tbody.innerHTML = rows.map(r => `
+    <tr>
+      <td class="mono">${fmtDate(r.fr)}</td>
+      <td class="mono">${fmtDate(r.to)}</td>
+      <td class="r mono">${Math.round(r.d)}</td>
+      <td class="r" style="white-space:nowrap">
+        <input class="rate-inp" data-idx="${r.idx}" type="number" value="${r.rate}" min="0" max="100" step="0.25" title="ЦБ: ${r.cbRate}%">%
+        <span style="color:var(--faint);font-size:9px;display:block;line-height:1">ЦБ ${r.cbRate}%</span>
+      </td>
+    </tr>`).join('') + `
+  <tr>
+    <td colspan="2">Итого</td>
+    <td class="r mono">${Math.round(totalDays)}</td>
+    <td></td>
+  </tr>`;
+
+  tbody.querySelectorAll('.rate-inp').forEach(inp => {
+    inp.addEventListener('change', () => {
+      PERIODS[+inp.dataset.idx].rate = parseFloat(inp.value) || 0;
+      calculate();
+    });
+  });
+}
+
+// RENDER MM TABLE
+function renderMm(p1, p2) {
+  const tbody = document.getElementById('mmBody');
+  const rows = p1.results.map((r, i) => {
+    const r2 = p2.results[i];
+    const saleVal = Math.round(customSale[r.mm.num] ?? DEFAULT_SALE[r.mm.num] ?? r.mm.buy);
+    const c1 = r.ownerProfit >= 0 ? 'pos' : 'neg';
+    const c2 = r2.ownerProfit >= 0 ? 'pos' : 'neg';
+    return `<tr>
+      <td><strong>${r.mm.num}</strong></td>
+      <td class="mono">${r.mm.sqm}</td>
+      <td class="mono">${T(r.buyThs)}</td>
+      <td><input class="sale-inp" data-mm="${r.mm.num}" type="number" value="${saleVal}" step="1" min="0"></td>
+      <td class="mono">${T(r.intReal)}</td>
+      <td class="mono">${T(r.intPartner)}</td>
+      <td class="mono">${T(r.maint)}</td>
+      <td class="mono">${T(r.rkoThs + r.accThs)}</td>
+      <td class="mono">${T(r.ndfl)}</td>
+      <td class="mono">${T(r.costsReal)}</td>
+      <td><span class="chip ${c1}">${T(r.ownerProfit)}</span></td>
+      <td class="mono">${P(r.roi)}</td>
+      <td class="mono">${r.irr != null ? P(r.irr) : '—'}</td>
+      <td class="sep"><span class="chip ${c2}">${T(r2.ownerProfit)}</span></td>
+      <td class="mono">${P(r2.roi)}</td>
+      <td class="mono">${r2.irr != null ? P(r2.irr) : '—'}</td>
+      <td class="sep mono">${T(r.ownerProfit)}</td>
+      <td class="mono">${T(r.partnerPay)}</td>
+    </tr>`;
+  });
+
+  const t1 = p1.tot, t2 = p2.tot;
+  const c1 = t1.ownerProfit >= 0 ? 'pos' : 'neg';
+  const c2 = t2.ownerProfit >= 0 ? 'pos' : 'neg';
+  rows.push(`<tr class="tot">
+    <td>ИТОГО</td>
+    <td class="mono">${MM.reduce((s,m)=>s+m.sqm,0).toFixed(1)}</td>
+    <td class="mono">${T(t1.buyThs)}</td>
+    <td class="mono">${T(t1.sale)}</td>
+    <td class="mono">${T(t1.intReal)}</td>
+    <td class="mono">${T(t1.intPartner)}</td>
+    <td class="mono">${T(t1.maint)}</td>
+    <td class="mono">${T(t1.rkoThs + t1.accThs)}</td>
+    <td class="mono">${T(t1.ndfl)}</td>
+    <td class="mono">${T(t1.costsReal)}</td>
+    <td><span class="chip ${c1}">${T(t1.ownerProfit)}</span></td>
+    <td class="mono">${P(t1.roi)}</td>
+    <td class="mono">${t1.irr != null ? P(t1.irr) : '—'}</td>
+    <td class="sep"><span class="chip ${c2}">${T(t2.ownerProfit)}</span></td>
+    <td class="mono">${P(t2.roi)}</td>
+    <td class="mono">${t2.irr != null ? P(t2.irr) : '—'}</td>
+    <td class="sep mono">${T(t1.ownerProfit)}</td>
+    <td class="mono">${T(t1.partnerPay)}</td>
+  </tr>`);
+
+  tbody.innerHTML = rows.join('');
+
+  tbody.querySelectorAll('.sale-inp').forEach(inp => {
+    const commit = () => {
+      const v = parseFloat(inp.value);
+      customSale[+inp.dataset.mm] = isNaN(v) ? DEFAULT_SALE[+inp.dataset.mm] : Math.round(v);
+      calculate();
+    };
+    inp.addEventListener('change', commit);
+    inp.addEventListener('keydown', e => { if(e.key === 'Enter') commit(); });
+  });
+}
+
+// MAIN
+function calculate() {
+  const v = document.getElementById('evalDate').value;
+  if(!v) return;
+  const evalDate  = new Date(v);
+  const evalDate2 = addDays(evalDate, 20);
+
+  const params = {
+    maintRateMonth: parseFloat(document.getElementById('maintRate').value) || 0,
+    maintStart:     document.getElementById('maintStart').value,
+    rkoRub:         parseFloat(document.getElementById('rko').value) || 0,
+    accRub:         parseFloat(document.getElementById('acc').value) || 0,
+    taxRate:        parseFloat(document.getElementById('taxRate').value) / 100,
+    partShare:      parseFloat(document.getElementById('partShare').value) / 100,
+    partRate:       parseFloat(document.getElementById('partRate').value) / 100,
+  };
+
+  renderRates(evalDate);
+  const p1 = calcPortfolio(evalDate, params);
+  const p2 = calcPortfolio(evalDate2, params);
+  renderMm(p1, p2);
+}
+
+['evalDate','maintRate','maintStart','rko','acc','taxRate','partShare','partRate']
+  .forEach(id => document.getElementById(id).addEventListener('input', calculate));
+
+document.getElementById('evalDate').value = new Date().toISOString().split('T')[0];
+calculate();
+</script>
+</body>
+</html>
