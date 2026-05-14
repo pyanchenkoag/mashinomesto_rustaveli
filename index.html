@@ -122,10 +122,13 @@ input,select{transition:border-color var(--tr),box-shadow var(--tr)}
   text-align:right;white-space:nowrap;vertical-align:middle}
 .mm-tbl td:first-child{text-align:left}
 .mm-tbl th:first-child,.mm-tbl td:first-child{
-  position:sticky;left:0;z-index:2;
-  background:var(--surface);box-shadow:2px 0 4px rgba(0,0,0,.06)}
+  position:sticky;left:0;z-index:3;
+  background:var(--surface);box-shadow:2px 0 5px rgba(0,0,0,.10)}
+.mm-tbl thead th:first-child{z-index:4;background:var(--offset)}
 .mm-tbl tr.tot td:first-child{background:var(--offset)}
 .mm-tbl tr:hover td:first-child{background:var(--surface2)}
+/* все td имеют явный фон чтобы не просвечивать через sticky */
+.mm-tbl td{background:var(--surface)}
 .mm-tbl tr:hover td{background:var(--surface2)}
 .mm-tbl tr.tot td{background:var(--offset);font-weight:700;
   border-top:2px solid var(--border)}
